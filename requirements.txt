@@ -1,0 +1,6 @@
+﻿streamlit
+qdrant-client
+sentence-transformers
+llama-cpp-python
+pymupdf
+torch

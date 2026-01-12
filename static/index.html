@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local AI Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="app-container">
+    <aside class="sidebar">
+        <h2>Documents</h2>
+        <div class="select-container">
+            <select id="doc-select">
+                <option value="" disabled selected>Loading...</option>
+            </select>
+        </div>
+        <div class="status-panel">
+            <p>Status: <span id="system-status">Ready</span></p>
+            <p class="note">Local Mode (Offline)</p>
+        </div>
+    </aside>
+    <main class="chat-interface">
+        <div class="chat-header"><h1 id="chat-title">Select a document</h1></div>
+        <div id="chat-history" class="chat-history">
+             <div class="message system">Welcome. Please select a document to begin.</div>
+        </div>
+        <div class="input-area">
+            <textarea id="user-input" placeholder="Ask a question..." rows="1"></textarea>
+            <button id="send-btn">Send</button>
+        </div>
+    </main>
+</div>
+<script src="/static/script.js"></script>
+</body>
+</html>

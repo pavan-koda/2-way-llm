@@ -1,4 +1,4 @@
-﻿﻿import os
+﻿import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PDF_INPUT_DIR = os.path.join(BASE_DIR, "pdfs")
 DB_PATH = os.path.join(BASE_DIR, "qdrant_db")

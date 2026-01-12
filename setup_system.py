@@ -3,7 +3,7 @@ import venv
 
 # --- CONFIGURATION ---
 # Target directory for the project
-BASE_DIR = os.path.join(os.path.expanduser("~"), "local_ai_system")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # File Contents Definitions
 
@@ -490,12 +490,24 @@ else
 fi
 
 # 2. Activate Virtual Environment
+if [ ! -d "venv" ]; then
+    echo -e "${YELLOW}⚠️  venv not found. Creating one...${NC}"
+    python3 -m venv venv
+fi
+
 if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
     echo -e "${GREEN}✅ Virtual Environment Activated${NC}"
 else
-    echo -e "${RED}❌ Error: venv not found.${NC}"
+    echo -e "${RED}❌ Error: venv creation failed.${NC}"
     exit 1
+fi
+
+if ! pip freeze | grep -q "fastapi"; then
+    if [ -f "requirements.txt" ]; then
+        echo -e "${BLUE}📥 Installing dependencies...${NC}"
+        pip install -r requirements.txt
+    fi
 fi
 
 # 3. Check AI Models (Ollama)

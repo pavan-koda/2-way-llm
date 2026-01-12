@@ -1,5 +1,5 @@
 ﻿﻿import os
-BASE_DIR = os.path.join(os.path.expanduser("~"), "local_ai_system")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PDF_INPUT_DIR = os.path.join(BASE_DIR, "pdfs")
 DB_PATH = os.path.join(BASE_DIR, "qdrant_db")
 COLLECTION_NAME = "local_docs"

@@ -89,9 +89,11 @@ def main():
     print("Loading Embedding Model (bge-large-en-v1.5)...")
     if torch.cuda.is_available():
         print(f"✅ GPU Detected: {torch.cuda.get_device_name(0)}")
+        device_type = "cuda"
     else:
         print("⚠️ GPU Not Detected, using CPU")
-    embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME, device="cuda")
+        device_type = "cpu"
+    embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME, device=device_type)
     
     # 2. Initialize Qdrant (Local Vector DB)
     client = QdrantClient(path=str(DB_PATH))
@@ -465,7 +467,7 @@ loadDocs();"""
 START_APP_SH = """#!/bin/bash
 
 # Define project directory
-BASE_DIR="$HOME/local_ai_system"
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Colors
 GREEN='\\033[0;32m'
@@ -496,7 +498,20 @@ else
     exit 1
 fi
 
-# 3. Check for Documents
+# 3. Check AI Models (Ollama)
+if ! command -v ollama &> /dev/null; then
+    echo -e "${RED}❌ Error: Ollama is not installed. Please install it from https://ollama.com/${NC}"
+    exit 1
+fi
+
+if ! ollama list | grep -q "qwen2.5:7b-instruct"; then
+    echo -e "${BLUE}📥 Downloading LLM (qwen2.5:7b-instruct)...${NC}"
+    ollama pull qwen2.5:7b-instruct
+else
+    echo -e "${GREEN}✅ LLM (Qwen) found.${NC}"
+fi
+
+# 4. Check for Documents
 count=$(ls documents/*.pdf 2>/dev/null | wc -l)
 if [ "$count" -eq "0" ]; then
     echo -e "${YELLOW}⚠️  Warning: No PDFs found in 'documents' folder.${NC}"
@@ -504,7 +519,7 @@ else
     echo -e "${GREEN}📄 Found $count PDF(s).${NC}"
 fi
 
-# 4. Ingestion Prompt
+# 5. Ingestion Prompt
 echo ""
 read -p "❓ Run ingestion? (y/N): " confirm
 if [[ "$confirm" =~ ^[Yy]$ ]]; then
@@ -515,7 +530,7 @@ else
     echo -e "${YELLOW}⏩ Skipping Ingestion.${NC}"
 fi
 
-# 5. Start Server
+# 6. Start Server
 echo ""
 echo -e "${BLUE}🚀 Starting Web Server...${NC}"
 echo -e "   Access at: ${GREEN}http://localhost:8000${NC}"

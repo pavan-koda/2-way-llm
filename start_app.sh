@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Define project directory
-BASE_DIR="$HOME/local_ai_system"
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Colors
 GREEN='\033[0;32m'

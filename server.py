@@ -52,6 +52,21 @@ def load_pdf_content(file_path, doc_id):
         )
     return documents
 
+@app.on_event("startup")
+async def startup_event():
+    """Ensures the vector database collection exists on startup."""
+    if not client.collection_exists(COLLECTION_NAME):
+        print(f"Creating collection: {COLLECTION_NAME}")
+        client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE),
+        )
+        client.create_payload_index(
+            collection_name=COLLECTION_NAME,
+            field_name="doc_id",
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+
 @app.get("/")
 async def read_root():
     return FileResponse('static/index.html')

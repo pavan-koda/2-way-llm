@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from llama_index.core import Document
 from llama_index.core.node_parser import SemanticSplitterNodeParser
@@ -94,24 +94,27 @@ async def list_documents():
     # Return list of dicts: [{'id': 'filename', 'name': 'filename'}]
     return [{"id": os.path.basename(f).replace(" ", "_"), "name": os.path.basename(f)} for f in files]
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     print(f"Querying {request.doc_id}: {request.query}")
-    start_time = time.time()
-    try:
-        answer = retrieve_and_answer(request.query, request.doc_id)
-        
-        duration = time.time() - start_time
-        if duration < 60:
-            time_msg = f"({duration:.2f} seconds)"
-        else:
-            time_msg = f"({duration / 60:.2f} minutes)"
+    
+    async def response_generator():
+        start_time = time.time()
+        try:
+            for chunk in retrieve_and_answer(request.query, request.doc_id):
+                yield chunk
             
-        answer += f"\n\n_Response time: {time_msg}_"
-        return ChatResponse(answer=answer)
-    except Exception as e:
-        print(f"Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            duration = time.time() - start_time
+            if duration < 60:
+                time_msg = f"({duration:.2f} seconds)"
+            else:
+                time_msg = f"({duration / 60:.2f} minutes)"
+            yield f"\n\n_Response time: {time_msg}_"
+        except Exception as e:
+            print(f"Error: {e}")
+            yield f"Error: {str(e)}"
+
+    return StreamingResponse(response_generator(), media_type="text/plain")
 
 @app.post("/api/upload")
 async def upload_document(file: UploadFile = File(...)):

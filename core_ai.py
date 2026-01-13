@@ -30,7 +30,8 @@ def retrieve_and_answer(query: str, doc_id: str):
     
     # Optimization: Handle simple greetings instantly to save time
     if query.strip().lower() in ["hi", "hello", "hey", "greetings", "hola"]:
-        return "Hello! I am ready to answer questions about your document."
+        yield "Hello! I am ready to answer questions about your document."
+        return
 
     # --- STEP 1: Vector Search ---
     query_vector = embed_model.get_query_embedding(query)
@@ -51,7 +52,8 @@ def retrieve_and_answer(query: str, doc_id: str):
         search_result = client.query_points(collection_name=COLLECTION_NAME, query=query_vector, query_filter=query_filter, limit=5).points
     
     if not search_result:
-        return "Information not found in the selected document."
+        yield "Information not found in the selected document."
+        return
 
     top_hits = search_result
     
@@ -81,10 +83,11 @@ def retrieve_and_answer(query: str, doc_id: str):
     user_prompt = f"Context:\n{context_str}\n\nQuestion: {query}"
     
     try:
-        response = ollama.chat(model=LLM_MODEL, messages=[
+        stream = ollama.chat(model=LLM_MODEL, messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_prompt},
-        ])
-        return response['message']['content']
+        ], stream=True)
+        for chunk in stream:
+            yield chunk['message']['content']
     except Exception as e:
-        return f"Error communicating with LLM: {str(e)}"
+        yield f"Error communicating with LLM: {str(e)}"

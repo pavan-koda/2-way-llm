@@ -43,8 +43,34 @@ async function sendMessage() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ doc_id: currentDocId, query: text })
         });
-        const data = await res.json();
-        addMessage("AI", data.answer);
+        
+        // Create a placeholder message for the AI
+        const aiDiv = addMessage("AI", "");
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        // Read the stream
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+            aiDiv.textContent = fullText; // Display raw text while streaming
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Apply formatting (Bold, Evidence, Newlines) after stream finishes
+        if (fullText.includes("Evidence:")) {
+            const parts = fullText.split("Evidence:");
+            let explanation = parts[0].replace("Explanation:", "").trim();
+            const evidence = parts[1].trim();
+            explanation = formatText(explanation);
+            aiDiv.innerHTML = `<strong>Explanation:</strong><br>${explanation}<div class="evidence-block"><strong>Evidence:</strong><br>${formatText(evidence)}</div>`;
+        } else {
+            aiDiv.innerHTML = formatText(fullText);
+        }
+
     } catch (e) {
         addMessage("System", "Error connecting to server.");
     } finally {
@@ -55,6 +81,12 @@ async function sendMessage() {
     }
 }
 
+function formatText(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+}
+
 function addMessage(role, text) {
     const div = document.createElement('div');
     div.className = `message ${role.toLowerCase()}`;
@@ -63,18 +95,14 @@ function addMessage(role, text) {
         const parts = text.split("Evidence:");
         let explanation = parts[0].replace("Explanation:", "").trim();
         const evidence = parts[1].trim();
-        
-        // Format Explanation: Escape HTML, then apply Bold and Newlines
-        explanation = explanation.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-            .replace(/\n/g, "<br>");
-            
-        div.innerHTML = `<strong>Explanation:</strong><br>${explanation}<div class="evidence-block"><strong>Evidence:</strong><br>${evidence.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')}</div>`;
+        explanation = formatText(explanation);
+        div.innerHTML = `<strong>Explanation:</strong><br>${explanation}<div class="evidence-block"><strong>Evidence:</strong><br>${formatText(evidence)}</div>`;
     } else {
         div.textContent = text;
     }
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
+    return div;
 }
 
 sendBtn.addEventListener('click', sendMessage);

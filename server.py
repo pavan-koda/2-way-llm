@@ -2,6 +2,7 @@ import os
 import glob
 import shutil
 import uuid
+import time
 import fitz  # PyMuPDF
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -96,8 +97,17 @@ async def list_documents():
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     print(f"Querying {request.doc_id}: {request.query}")
+    start_time = time.time()
     try:
         answer = retrieve_and_answer(request.query, request.doc_id)
+        
+        duration = time.time() - start_time
+        if duration < 60:
+            time_msg = f"({duration:.2f} seconds)"
+        else:
+            time_msg = f"({duration / 60:.2f} minutes)"
+            
+        answer += f"\n\n_Response time: {time_msg}_"
         return ChatResponse(answer=answer)
     except Exception as e:
         print(f"Error: {e}")

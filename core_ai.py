@@ -2,14 +2,12 @@ import ollama
 from pathlib import Path
 from qdrant_client import QdrantClient, models
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from sentence_transformers import CrossEncoder
 
 # --- CONFIGURATION ---
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "qdrant_data"
 COLLECTION_NAME = "local_docs"
 EMBED_MODEL_NAME = "BAAI/bge-large-en-v1.5"
-RERANK_MODEL_NAME = "BAAI/bge-reranker-large"
 LLM_MODEL = "qwen2.5:7b-instruct"
 
 print("Initializing AI Core Models...")
@@ -17,9 +15,6 @@ print("Initializing AI Core Models...")
 # Load Models (Global to avoid reloading per request)
 # 1. Embedding Model for Vector Search
 embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME, device="cpu")
-
-# 2. Reranker for Precision (Top 30 -> Top 5)
-reranker = CrossEncoder(RERANK_MODEL_NAME, device="cpu")
 
 # 3. Database Client
 client = QdrantClient(path=str(DB_PATH))
@@ -33,6 +28,10 @@ def retrieve_and_answer(query: str, doc_id: str):
     4. Generate Answer with Citations
     """
     
+    # Optimization: Handle simple greetings instantly to save time
+    if query.strip().lower() in ["hi", "hello", "hey", "greetings", "hola"]:
+        return "Hello! I am ready to answer questions about your document."
+
     # --- STEP 1: Vector Search ---
     query_vector = embed_model.get_query_embedding(query)
     
@@ -46,22 +45,15 @@ def retrieve_and_answer(query: str, doc_id: str):
     )
     
     try:
-        search_result = client.search(collection_name=COLLECTION_NAME, query_vector=query_vector, query_filter=query_filter, limit=25)
+        search_result = client.search(collection_name=COLLECTION_NAME, query_vector=query_vector, query_filter=query_filter, limit=5)
     except AttributeError:
         # Fallback for client versions where 'search' might be missing or replaced by 'query_points'
-        search_result = client.query_points(collection_name=COLLECTION_NAME, query=query_vector, query_filter=query_filter, limit=25).points
+        search_result = client.query_points(collection_name=COLLECTION_NAME, query=query_vector, query_filter=query_filter, limit=5).points
     
     if not search_result:
         return "Information not found in the selected document."
 
-    # --- STEP 2: Reranking ---
-    # Create pairs of (query, document_text)
-    passages = [(query, hit.payload["text"]) for hit in search_result]
-    scores = reranker.predict(passages)
-    
-    # Sort by score (descending) and take Top 5
-    top_indices = scores.argsort()[::-1][:5]
-    top_hits = [search_result[i] for i in top_indices]
+    top_hits = search_result
     
     # --- STEP 3: Context Construction ---
     # We wrap chunks in XML tags to help the LLM identify page numbers

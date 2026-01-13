@@ -55,6 +55,10 @@ def load_pdf_content(file_path, doc_id):
 @app.on_event("startup")
 async def startup_event():
     """Ensures the vector database collection exists on startup."""
+    # Ensure documents directory exists to prevent upload errors
+    if not (BASE_DIR / "documents").exists():
+        (BASE_DIR / "documents").mkdir(parents=True, exist_ok=True)
+
     if not client.collection_exists(COLLECTION_NAME):
         print(f"Creating collection: {COLLECTION_NAME}")
         client.create_collection(

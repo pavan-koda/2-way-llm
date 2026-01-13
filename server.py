@@ -3,6 +3,7 @@ import glob
 import shutil
 import uuid
 import fitz  # PyMuPDF
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +14,30 @@ from llama_index.core.node_parser import SemanticSplitterNodeParser
 from qdrant_client import models
 from core_ai import retrieve_and_answer, embed_model, client, COLLECTION_NAME
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handles startup and shutdown events."""
+    # 1. Ensure documents directory exists
+    docs_dir = BASE_DIR / "documents"
+    if not docs_dir.exists():
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Created directory: {docs_dir}")
+
+    # 2. Ensure Vector DB Collection exists
+    if not client.collection_exists(COLLECTION_NAME):
+        print(f"Creating collection: {COLLECTION_NAME}")
+        client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE),
+        )
+        client.create_payload_index(
+            collection_name=COLLECTION_NAME,
+            field_name="doc_id",
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # Mount static files for the UI
 BASE_DIR = Path(__file__).resolve().parent
@@ -51,25 +75,6 @@ def load_pdf_content(file_path, doc_id):
             )
         )
     return documents
-
-@app.on_event("startup")
-async def startup_event():
-    """Ensures the vector database collection exists on startup."""
-    # Ensure documents directory exists to prevent upload errors
-    if not (BASE_DIR / "documents").exists():
-        (BASE_DIR / "documents").mkdir(parents=True, exist_ok=True)
-
-    if not client.collection_exists(COLLECTION_NAME):
-        print(f"Creating collection: {COLLECTION_NAME}")
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE),
-        )
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="doc_id",
-            field_schema=models.PayloadSchemaType.KEYWORD,
-        )
 
 @app.get("/")
 async def read_root():

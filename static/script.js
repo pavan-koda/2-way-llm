@@ -61,9 +61,15 @@ function addMessage(role, text) {
     
     if (role === "AI" && text.includes("Evidence:")) {
         const parts = text.split("Evidence:");
-        const explanation = parts[0].replace("Explanation:", "").trim();
+        let explanation = parts[0].replace("Explanation:", "").trim();
         const evidence = parts[1].trim();
-        div.innerHTML = `<strong>Explanation:</strong><br>${explanation}<div class="evidence-block"><strong>Evidence:</strong><br>${evidence.replace(/\n/g, '<br>')}</div>`;
+        
+        // Format Explanation: Escape HTML, then apply Bold and Newlines
+        explanation = explanation.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\n/g, "<br>");
+            
+        div.innerHTML = `<strong>Explanation:</strong><br>${explanation}<div class="evidence-block"><strong>Evidence:</strong><br>${evidence.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')}</div>`;
     } else {
         div.textContent = text;
     }

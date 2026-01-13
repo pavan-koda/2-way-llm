@@ -71,10 +71,11 @@ def retrieve_and_answer(query: str, doc_id: str):
         "If the answer is not in the chunks, say 'Information not found in the selected document.'\n\n"
         "FORMATTING RULES:\n"
         "1. Start with a clear 'Explanation:'.\n"
-        "2. Follow with 'Evidence:'.\n"
-        "3. Under Evidence, list exact quotes from the text that support your answer.\n"
-        "4. Format quotes as: • \"<exact quote>\" (Page <number>)\n"
-        "5. Do not make up quotes or page numbers."
+        "2. Use bullet points (*) for lists and bolding (**) for key terms in the explanation.\n"
+        "3. Follow with 'Evidence:'.\n"
+        "4. Under Evidence, list exact quotes from the text that support your answer.\n"
+        "5. Format quotes as: • \"<exact quote>\" (Page <number>)\n"
+        "6. Do not make up quotes or page numbers."
     )
     
     user_prompt = f"Context:\n{context_str}\n\nQuestion: {query}"

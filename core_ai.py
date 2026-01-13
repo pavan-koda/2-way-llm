@@ -36,19 +36,20 @@ def retrieve_and_answer(query: str, doc_id: str):
     # --- STEP 1: Vector Search ---
     query_vector = embed_model.get_query_embedding(query)
     
-    search_result = client.search(
-        collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
-        query_filter=models.Filter(
-            must=[
-                models.FieldCondition(
-                    key="doc_id",
-                    match=models.MatchValue(value=doc_id)
-                )
-            ]
-        ),
-        limit=25 # Fetch a broad set of candidates
+    query_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="doc_id",
+                match=models.MatchValue(value=doc_id)
+            )
+        ]
     )
+    
+    try:
+        search_result = client.search(collection_name=COLLECTION_NAME, query_vector=query_vector, query_filter=query_filter, limit=25)
+    except AttributeError:
+        # Fallback for client versions where 'search' might be missing or replaced by 'query_points'
+        search_result = client.query_points(collection_name=COLLECTION_NAME, query=query_vector, query_filter=query_filter, limit=25).points
     
     if not search_result:
         return "Information not found in the selected document."

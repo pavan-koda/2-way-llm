@@ -43,6 +43,34 @@
             color: var(--accent);
             margin-top: 20px;
         }
+        .progress-container {
+            margin-top: 15px;
+            display: none;
+            text-align: left;
+        }
+        .progress-bar-bg {
+            background: var(--border);
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.2s;
+        }
+        .progress-bar-fill.ingesting {
+            width: 100% !important;
+            background-image: linear-gradient(45deg,rgba(255, 255, 255, 0.15) 25%,transparent 25%,transparent 50%,rgba(255, 255, 255, 0.15) 50%,rgba(255, 255, 255, 0.15) 75%,transparent 75%,transparent);
+            background-size: 20px 20px;
+            animation: stripe-move 1s linear infinite;
+        }
+        @keyframes stripe-move {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
     </style>
 </head>
 <body>
@@ -55,6 +83,13 @@
             <input type="file" id="file-input" accept=".pdf" style="display: none;">
         </div>
         <div id="status-msg" style="height: 20px; color: var(--accent);"></div>
+        
+        <div id="progress-container" class="progress-container">
+            <div class="progress-bar-bg">
+                <div id="progress-bar" class="progress-bar-fill"></div>
+            </div>
+            <div id="progress-text" style="font-size: 0.8em; color: #888; margin-top: 5px; text-align: center;">0%</div>
+        </div>
 
         <div class="file-list" id="file-list"></div>
 

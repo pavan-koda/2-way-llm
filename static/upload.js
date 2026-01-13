@@ -2,6 +2,9 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const statusMsg = document.getElementById('status-msg');
 const fileList = document.getElementById('file-list');
+const progressContainer = document.getElementById('progress-container');
+const progressBar = document.getElementById('progress-bar');
+const progressText = document.getElementById('progress-text');
 
 // Load existing documents
 async function loadFiles() {
@@ -28,21 +31,66 @@ async function handleUpload(file) {
     const formData = new FormData();
     formData.append('file', file);
 
-    statusMsg.textContent = "Uploading & Ingesting...";
+    // Reset UI
+    statusMsg.textContent = "Starting...";
     dropZone.style.opacity = "0.5";
+    progressContainer.style.display = "block";
+    progressBar.style.width = "0%";
+    progressBar.classList.remove('ingesting');
+    progressText.textContent = "0%";
+    
+    let ingestTimer;
 
-    try {
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (!res.ok) throw new Error(await res.text());
-        
-        const data = await res.json();
-        statusMsg.textContent = "✅ Success: " + data.filename;
-        loadFiles();
-    } catch (err) {
-        statusMsg.textContent = "❌ Error: " + err.message;
-    } finally {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload', true);
+
+    // Track Upload Progress
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            progressBar.style.width = percent + "%";
+            progressText.textContent = `Uploading: ${Math.round(percent)}%`;
+            
+            // If upload finishes, switch to Ingesting state
+            if (percent >= 100) {
+                statusMsg.textContent = "Ingesting (Embedding text)...";
+                progressBar.classList.add('ingesting');
+                let seconds = 0;
+                progressText.textContent = "Processing... (0s)";
+                ingestTimer = setInterval(() => {
+                    seconds++;
+                    progressText.textContent = `Processing... (${seconds}s)`;
+                }, 1000);
+            }
+        }
+    };
+
+    xhr.onload = () => {
+        clearInterval(ingestTimer);
         dropZone.style.opacity = "1";
-    }
+        progressBar.classList.remove('ingesting');
+
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            statusMsg.textContent = "✅ Success: " + data.filename;
+            progressBar.style.width = "100%";
+            progressText.textContent = "Complete!";
+            loadFiles();
+            setTimeout(() => { progressContainer.style.display = "none"; }, 3000);
+        } else {
+            statusMsg.textContent = "❌ Error: " + (xhr.responseText || "Upload failed");
+            progressContainer.style.display = "none";
+        }
+    };
+
+    xhr.onerror = () => {
+        clearInterval(ingestTimer);
+        dropZone.style.opacity = "1";
+        statusMsg.textContent = "❌ Network Error";
+        progressContainer.style.display = "none";
+    };
+
+    xhr.send(formData);
 }
 
 // Event Listeners

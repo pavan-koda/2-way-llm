@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Manager - Local AI</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; }
+        .upload-card {
+            background: var(--sidebar);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            width: 500px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .upload-area {
+            border: 2px dashed var(--border);
+            padding: 40px;
+            margin: 20px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover { border-color: var(--accent); }
+        .file-list {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-size: 0.9em;
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="upload-card">
+        <h2 style="color: var(--accent);">Document Manager</h2>
+        <p style="color: #888;">Upload PDFs to your local knowledge base.</p>
+        
+        <div class="upload-area" id="drop-zone">
+            <p>Click to Select PDF</p>
+            <input type="file" id="file-input" accept=".pdf" style="display: none;">
+        </div>
+        <div id="status-msg" style="height: 20px; color: var(--accent);"></div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <button class="btn-secondary" onclick="window.location.href='/'">← Back to Chat</button>
+    </div>
+    <script src="/static/upload.js"></script>
+</body>
+</html>

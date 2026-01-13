@@ -4,8 +4,6 @@ const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const statusLabel = document.getElementById('system-status');
 const chatTitle = document.getElementById('chat-title');
-const fileInput = document.getElementById('file-upload');
-const uploadBtn = document.getElementById('upload-trigger-btn');
 let currentDocId = null;
 
 async function loadDocs() {
@@ -72,47 +70,6 @@ function addMessage(role, text) {
     chatHistory.appendChild(div);
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
-
-// Upload Logic
-uploadBtn.addEventListener('click', () => fileInput.click());
-
-fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    uploadBtn.disabled = true;
-    uploadBtn.textContent = "Uploading...";
-    statusLabel.textContent = "Ingesting...";
-
-    try {
-        const res = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        const data = await res.json();
-        addMessage("System", `Uploaded & Ingested: ${data.filename}`);
-        await loadDocs(); // Refresh list
-        
-        // Auto-select the new file
-        docSelect.value = data.doc_id;
-        docSelect.dispatchEvent(new Event('change'));
-        
-    } catch (err) {
-        console.error(err);
-        addMessage("System", `Error uploading: ${err.message}`);
-    } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = "+ Upload PDF";
-        statusLabel.textContent = "Ready";
-        fileInput.value = ''; // Reset
-    }
-});
 
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', (e) => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }});

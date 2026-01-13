@@ -80,6 +80,11 @@ def load_pdf_content(file_path, doc_id):
 async def read_root():
     return FileResponse('static/index.html')
 
+@app.get("/upload")
+async def upload_page():
+    """Serves the dedicated upload UI."""
+    return FileResponse('static/upload.html')
+
 @app.get("/api/documents")
 async def list_documents():
     """Lists PDFs currently in the documents folder."""

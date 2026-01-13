@@ -1,11 +1,17 @@
 import os
 import glob
+import shutil
+import uuid
+import fitz  # PyMuPDF
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from core_ai import retrieve_and_answer
+from llama_index.core import Document
+from llama_index.core.node_parser import SemanticSplitterNodeParser
+from qdrant_client import models
+from core_ai import retrieve_and_answer, embed_model, client, COLLECTION_NAME
 
 app = FastAPI()
 
@@ -19,6 +25,32 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+
+def load_pdf_content(file_path, doc_id):
+    """Extracts text from PDF for ingestion."""
+    try:
+        doc = fitz.open(file_path)
+    except Exception as e:
+        print(f"Error opening {file_path}: {e}")
+        return []
+
+    documents = []
+    for page_num, page in enumerate(doc):
+        text = page.get_text("text")
+        text = " ".join(text.split())
+        if len(text) < 20: continue
+        
+        documents.append(
+            Document(
+                text=text,
+                metadata={
+                    "doc_id": doc_id,
+                    "doc_name": os.path.basename(file_path),
+                    "page_number": page_num + 1
+                }
+            )
+        )
+    return documents
 
 @app.get("/")
 async def read_root():
@@ -41,6 +73,60 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Uploads a PDF and ingests it immediately."""
+    safe_name = os.path.basename(file.filename)
+    save_path = BASE_DIR / "documents" / safe_name
+    
+    # 1. Save File
+    with open(save_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # 2. Ingest
+    doc_id = safe_name.replace(" ", "_")
+    
+    # Check if exists in DB
+    count = client.count(
+        collection_name=COLLECTION_NAME,
+        count_filter=models.Filter(
+            must=[models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id))]
+        )
+    ).count
+    
+    if count > 0:
+        return {"status": "exists", "filename": safe_name, "doc_id": doc_id}
+
+    # Process
+    raw_docs = load_pdf_content(str(save_path), doc_id)
+    if not raw_docs:
+        raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+
+    splitter = SemanticSplitterNodeParser(
+        buffer_size=1,
+        breakpoint_percentile_threshold=95,
+        embed_model=embed_model
+    )
+    
+    nodes = splitter.get_nodes_from_documents(raw_docs)
+    points = []
+    
+    for node in nodes:
+        vector = embed_model.get_text_embedding(node.get_content())
+        payload = {
+            "doc_id": doc_id,
+            "doc_name": node.metadata["doc_name"],
+            "page_number": node.metadata.get("page_number", 0),
+            "text": node.get_content(),
+            "chunk_id": str(uuid.uuid4())
+        }
+        points.append(models.PointStruct(id=payload["chunk_id"], vector=vector, payload=payload))
+        
+    if points:
+        client.upsert(collection_name=COLLECTION_NAME, points=points)
+        
+    return {"status": "success", "filename": safe_name, "doc_id": doc_id}
 
 if __name__ == "__main__":
     import uvicorn
